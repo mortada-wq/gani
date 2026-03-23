@@ -3,49 +3,67 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>غن | الصفحة الرئيسية</title>
+    <title>Gani | AI Music Generator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body class="landing-page">
     <main class="page page-landing">
-      <img class="logo logo-landing" src="assets/logo.svg" alt="شعار غن" />
+      <section class="landing-canvas" aria-label="AI music generation landing">
+        <div class="logo-stage" aria-hidden="true">
+          <div class="premium-logo">
+            <span class="premium-logo-core"></span>
+          </div>
+        </div>
 
-      <h1 class="hero-title">غن</h1>
-      <p class="hero-subtitle">
-        أول تطبيق لتوليد الموسيقى
-        <br />
-        العربية بالذكاء
-      </p>
-
-      <form class="prompt-wrap prompt-wrap-hero" action="#" method="post" data-prompt-form>
-        <label class="sr-only" for="landingPrompt">وصف الموسيقى</label>
-        <div class="prompt-pill">
+        <form class="premium-prompt" action="#" method="post" data-prompt-form data-destination="chat">
+          <label class="sr-only" for="landingPrompt">Describe music prompt</label>
           <input
             id="landingPrompt"
-            class="prompt-input"
+            class="premium-input"
             type="text"
-            placeholder="صف الموسيقى التي تريد..."
-            dir="rtl"
+            placeholder="Describe the track you want to generate..."
+            autocomplete="off"
           />
-        </div>
-      </form>
+          <span class="prompt-caret" aria-hidden="true"></span>
 
-      <div class="landing-actions">
-        <button class="icon-button" type="button" aria-label="تسجيل صوتي">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path
-              d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Zm6 9a6 6 0 0 1-12 0M12 18v3M9 21h6"
-            />
-          </svg>
-        </button>
-        <button class="text-button" type="submit">إنشاء</button>
-      </div>
+          <div class="prompt-tools" aria-label="Prompt tools">
+            <button class="tool-icon typing-only" type="button" aria-label="Voice input">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 3a3 3 0 0 1 3 3v6a3 3 0 1 1-6 0V6a3 3 0 0 1 3-3Zm6 9a6 6 0 0 1-12 0M12 18v3M9 21h6"
+                />
+              </svg>
+            </button>
+            <button class="tool-icon" type="button" aria-label="Style toggles">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 7h7M15 7h5M9 7v10M4 17h5M13 17h7M15 17V7" />
+              </svg>
+            </button>
+            <button class="tool-icon" type="button" aria-label="Settings">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M12 8.8a3.2 3.2 0 1 1 0 6.4 3.2 3.2 0 0 1 0-6.4Zm7.6 3.2-.9-.3a6.9 6.9 0 0 0-.4-1.1l.5-.8a1 1 0 0 0-.1-1.2l-1.2-1.2a1 1 0 0 0-1.2-.1l-.8.5c-.4-.2-.7-.3-1.1-.4l-.3-.9a1 1 0 0 0-1-.7h-1.8a1 1 0 0 0-1 .7l-.3.9c-.4.1-.7.2-1.1.4l-.8-.5a1 1 0 0 0-1.2.1L5.3 8.5a1 1 0 0 0-.1 1.2l.5.8c-.2.4-.3.7-.4 1.1l-.9.3a1 1 0 0 0-.7 1v1.8a1 1 0 0 0 .7 1l.9.3c.1.4.2.7.4 1.1l-.5.8a1 1 0 0 0 .1 1.2l1.2 1.2a1 1 0 0 0 1.2.1l.8-.5c.4.2.7.3 1.1.4l.3.9a1 1 0 0 0 1 .7h1.8a1 1 0 0 0 1-.7l.3-.9c.4-.1.7-.2 1.1-.4l.8.5a1 1 0 0 0 1.2-.1l1.2-1.2a1 1 0 0 0 .1-1.2l-.5-.8c.2-.4.3-.7.4-1.1l.9-.3a1 1 0 0 0 .7-1V13a1 1 0 0 0-.7-1Z"
+                />
+              </svg>
+            </button>
+            <button class="create-chip typing-only" type="submit">Create</button>
+          </div>
+        </form>
+
+        <ul class="trending-styles" aria-label="Trending styles">
+          <li>IRAQI</li>
+          <li>JAZZ</li>
+          <li>LO-FI</li>
+          <li>ORIENTAL</li>
+          <li>CINEMATIC</li>
+        </ul>
+      </section>
     </main>
 
     <script src="script.js"></script>
