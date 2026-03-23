@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>غن - المحادثة والتوليد</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app screen-page chat-page">
+      <header class="page-header">
+        <img class="logo logo-header" src="assets/logo.svg" alt="شعار غن" />
+        <h1 class="section-title">المحادثة والتوليد</h1>
+      </header>
+
+      <div class="track-list">
+        <article class="track-card">
+          <svg class="waveform" viewBox="0 0 100 30" aria-hidden="true">
+            <polyline
+              points="0,14 8,14 12,7 18,25 24,9 30,20 38,10 46,18 52,8 60,22 67,10 74,16 81,6 88,19 94,12 100,12"
+            />
+          </svg>
+          <h2 class="track-title">ليلة في بغداد</h2>
+          <p class="track-meta">٢:٤٧ • مقام نهاوند • إيقاع هادئ</p>
+          <div class="inline-actions">
+            <button class="text-btn text-btn-small" type="button">تشغيل</button>
+            <button class="text-btn text-btn-small" type="button">حفظ</button>
+            <button class="text-btn text-btn-small" type="button">مشاركة</button>
+          </div>
+        </article>
+
+        <article class="track-card">
+          <svg class="waveform" viewBox="0 0 100 30" aria-hidden="true">
+            <polyline
+              points="0,15 7,13 14,18 21,8 28,20 35,9 42,23 49,11 56,19 63,7 70,24 77,11 84,17 91,8 100,16"
+            />
+          </svg>
+          <h2 class="track-title">نسيم الصباح</h2>
+          <p class="track-meta">٣:١٢ • طابع معاصر • عود وقانون</p>
+          <div class="inline-actions">
+            <button class="text-btn text-btn-small" type="button">تشغيل</button>
+            <button class="text-btn text-btn-small" type="button">حفظ</button>
+            <button class="text-btn text-btn-small" type="button">مشاركة</button>
+          </div>
+        </article>
+      </div>
+
+      <form class="prompt-wrap chat-prompt" action="#" method="post">
+        <label class="sr-only" for="chat-prompt">وصف موسيقى جديدة</label>
+        <div class="prompt-pill">
+          <input
+            id="chat-prompt"
+            class="prompt-input"
+            type="text"
+            placeholder="صف الموسيقى التي تريد..."
+            dir="rtl"
+          />
+        </div>
+      </form>
+    </main>
+  </body>
+</html>
