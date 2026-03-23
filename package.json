@@ -1,0 +1,9 @@
+{
+  "name": "gani",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimalist Arabic music generation app static frontend",
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist && cp -R assets dist/assets && cp *.html dist/ && cp styles.css script.js dist/"
+  }
+}
