@@ -2,6 +2,9 @@
  * Music parameter definitions and auto-fill rules for Sahib App — Ghun Music Studio
  */
 
+/** Sentinel value for “let the engine decide” — Arabic UI copy */
+export const PARAM_AUTO = "تلقائي";
+
 export interface MusicParams {
   maqam?: string;
   rhythm?: string;
@@ -18,84 +21,149 @@ export interface MusicParams {
 }
 
 export const MAQAMS = [
-  "Automatic", "Bayat", "Rast", "Hijaz", "Saba", "Kurdess", "Sika", "Nahawand", "Lammi", "Hussaini", "Dasht"
+  PARAM_AUTO,
+  "بيات",
+  "راست",
+  "حجاز",
+  "صبا",
+  "كُرد",
+  "سيكاه",
+  "نهاوند",
+  "لمّي",
+  "حسيني",
+  "دشت",
 ];
 
 export const RHYTHMS = [
-  "Automatic", "Chobi", "Hacha'a", "Georgina", "Sama'i", "Moudha'af", "Wahda", "Yuruk"
+  PARAM_AUTO,
+  "تشوبي",
+  "هجعة",
+  "جرغينة",
+  "سماعي",
+  "مضاعف",
+  "وحدة",
+  "يورُك",
+  "إيقاع حر",
 ];
 
 export const LEAD_INSTRUMENTS = [
-  "Automatic", "Joza (Spike Fiddle)", "Santur (Hammered Dulcimer)", "Oud", "Nay", "Qanun", "Violin"
+  PARAM_AUTO,
+  "الجوزة",
+  "السنتور",
+  "العود",
+  "الناي",
+  "القانون",
+  "الكمان",
 ];
 
 export const VOCAL_STYLES = [
-  "Automatic", "Mawwal", "Ataba", "Abuthiya", "Pesta", "Hussaini Chanting", "Modern Pop", "Traditional Maqam"
+  PARAM_AUTO,
+  "موال",
+  "عتابا",
+  "أبوذية",
+  "بِستة",
+  "سرد حسيني",
+  "غناء عصري",
+  "غناء مقامي تراثي",
 ];
 
 export const ERAS = [
-  "Automatic", "1950s Radio", "1970s Vinyl", "1990s Cassette", "Modern Studio", "Lo-Fi Nostalgia"
+  PARAM_AUTO,
+  "إذاعة الخمسينات",
+  "فينيل السبعينات",
+  "كاسيت التسعينات",
+  "استوديو عصري",
+  "حنين لو-فاي",
 ];
 
 export const PERCUSSION_KITS = [
-  "Automatic", "Traditional Ensemble (Riq, Dumbak)", "Khishba (Southern Wood)", "Darbuka & Tabl", "Modern Hybrid"
+  PARAM_AUTO,
+  "مجموعة تراثية (رقّ ودُمبك)",
+  "خشبة جنوبية",
+  "دربكة وطبل",
+  "دمج إيقاعي عصري",
 ];
 
 export const EMOTIONS = [
-  "Automatic", "Nostalgia", "Sorrow (Shjan)", "Pride", "Joy", "Spiritual", "Romantic", "Melancholy"
+  PARAM_AUTO,
+  "حنين",
+  "حزن شجَني",
+  "فخر",
+  "فرح",
+  "روحاني",
+  "غرام",
+  "كَمَد لطيف",
 ];
 
 export const DIALECTS = [
-  "Automatic", "Baghdadi", "Southern (Basra)", "Rural (Reefy)", "Classic Modern Standard"
+  PARAM_AUTO,
+  "بغدادي",
+  "جنوبي (بصري)",
+  "ريفي",
+  "فصحى عصرية رصينة",
 ];
 
 export const REVERBS = [
-  "Automatic", "Intimate Café", "Wedding Hall", "Grand Mosque", "Studio Dry", "Analog Chamber"
+  PARAM_AUTO,
+  "مقهى حميم",
+  "صالة أفراح",
+  "جامع مهيب",
+  "استوديو جاف",
+  "حجرة أنالوج",
 ];
 
 export const STRUCTURES = [
-  "Automatic", "Traditional (Intro-Tahrir-Verse-Outro)", "Standard (Verse-Chorus)", "Symmetrical (Mawwal-Pesta-Mawwal)", "Cinematic Suite"
+  PARAM_AUTO,
+  "تراثي (مقدّمة — تحرير — بيت — خاتمة)",
+  "معياري (بيت ولازمة)",
+  "متوازن (موال — بِستة — موال)",
+  "مسار سينمائي",
 ];
 
 export const THEMES = [
-  "Automatic", "Love & Longing", "Homeland & Exile", "Spiritual Devotion", "Social Struggle", "Nature & Tigris"
+  PARAM_AUTO,
+  "غرام واشتياق",
+  "وطن وغربة",
+  "تقوى وخشوع",
+  "نضال اجتماعي",
+  "الطبيعة ودجلة",
 ];
 
 export const AUTO_FILL_RULES: Record<string, Partial<MusicParams>> = {
-  "Chobi": {
+  تشوبي: {
     tempo: 110,
-    emotionalCore: "Joy",
-    vocalStyle: "Modern Pop",
-    reverbSpace: "Wedding Hall",
-    percussionKit: "Khishba (Southern Wood)"
+    emotionalCore: "فرح",
+    vocalStyle: "غناء عصري",
+    reverbSpace: "صالة أفراح",
+    percussionKit: "خشبة جنوبية",
   },
-  "Mawwal": {
+  موال: {
     tempo: 60,
-    emotionalCore: "Nostalgia",
-    rhythm: "Free (No Rhythm)",
-    reverbSpace: "Intimate Café"
+    emotionalCore: "حنين",
+    rhythm: "إيقاع حر",
+    reverbSpace: "مقهى حميم",
   },
-  "Lammi": {
-    emotionalCore: "Sorrow (Shjan)",
+  لمّي: {
+    emotionalCore: "حزن شجَني",
     tempo: 75,
-    leadInstrument: "Joza (Spike Fiddle)",
-    dialect: "Baghdadi"
+    leadInstrument: "الجوزة",
+    dialect: "بغدادي",
   },
-  "1970s Vinyl": {
-    reverbSpace: "Analog Chamber",
-    rhythm: "Georgina",
-    tempo: 90
+  "فينيل السبعينات": {
+    reverbSpace: "حجرة أنالوج",
+    rhythm: "جرغينة",
+    tempo: 90,
   },
-  "Hussaini Chanting": {
-    emotionalCore: "Spiritual",
-    reverbSpace: "Grand Mosque",
-    rhythm: "Free (No Rhythm)"
+  "سرد حسيني": {
+    emotionalCore: "روحاني",
+    reverbSpace: "جامع مهيب",
+    rhythm: "إيقاع حر",
   },
-  "Hacha'a": {
+  هجعة: {
     tempo: 125,
-    percussionKit: "Khishba (Southern Wood)",
-    emotionalCore: "Pride"
-  }
+    percussionKit: "خشبة جنوبية",
+    emotionalCore: "فخر",
+  },
 };
 
 export const applyAutoFill = (currentParams: MusicParams): MusicParams => {
@@ -105,7 +173,7 @@ export const applyAutoFill = (currentParams: MusicParams): MusicParams => {
   if (currentParams.rhythm && AUTO_FILL_RULES[currentParams.rhythm]) {
     const rules = AUTO_FILL_RULES[currentParams.rhythm];
     Object.entries(rules).forEach(([key, value]) => {
-      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === "Automatic") {
+      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === PARAM_AUTO) {
         (result as any)[key] = value;
       }
     });
@@ -115,7 +183,7 @@ export const applyAutoFill = (currentParams: MusicParams): MusicParams => {
   if (currentParams.vocalStyle && AUTO_FILL_RULES[currentParams.vocalStyle]) {
     const rules = AUTO_FILL_RULES[currentParams.vocalStyle];
     Object.entries(rules).forEach(([key, value]) => {
-      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === "Automatic") {
+      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === PARAM_AUTO) {
         (result as any)[key] = value;
       }
     });
@@ -125,7 +193,17 @@ export const applyAutoFill = (currentParams: MusicParams): MusicParams => {
   if (currentParams.era && AUTO_FILL_RULES[currentParams.era]) {
     const rules = AUTO_FILL_RULES[currentParams.era];
     Object.entries(rules).forEach(([key, value]) => {
-      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === "Automatic") {
+      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === PARAM_AUTO) {
+        (result as any)[key] = value;
+      }
+    });
+  }
+
+  // Apply maqam-based rules (e.g. لمّي)
+  if (currentParams.maqam && AUTO_FILL_RULES[currentParams.maqam]) {
+    const rules = AUTO_FILL_RULES[currentParams.maqam];
+    Object.entries(rules).forEach(([key, value]) => {
+      if (!result[key as keyof MusicParams] || result[key as keyof MusicParams] === PARAM_AUTO) {
         (result as any)[key] = value;
       }
     });
@@ -136,31 +214,19 @@ export const applyAutoFill = (currentParams: MusicParams): MusicParams => {
 
 export const stitchGoldenPrompt = (params: MusicParams, lyrics?: string): string => {
   const p = { ...params };
-  Object.keys(p).forEach(key => {
-    if (p[key as keyof MusicParams] === "Automatic") {
+  Object.keys(p).forEach((key) => {
+    if (p[key as keyof MusicParams] === PARAM_AUTO) {
       delete p[key as keyof MusicParams];
     }
   });
 
-  const era = p.era || "High-fidelity";
-  const maqam = p.maqam || "Iraqi Maqam";
-  const dialect = p.dialect || "Iraqi style";
-  const leadInst = p.leadInstrument || "Traditional instruments";
-  const percussion = p.percussionKit || "Traditional percussion";
-  const rhythm = p.rhythm || "Standard rhythm";
   const bpm = p.tempo || 90;
-  const vocalStyle = p.vocalStyle || "Authentic";
-  const emotion = p.emotionalCore || "Soulful";
-  const structure = p.songStructure || "Standard structure";
-  const reverb = p.reverbSpace || "Studio";
+  const spec = JSON.stringify(p);
 
-  let prompt = `A ${era} recording of ${maqam} Iraqi music in ${dialect}. 
-Featuring a ${leadInst} as the primary melodic voice, accompanied by ${percussion}. 
-The rhythm is ${rhythm} at ${bpm} BPM. ${vocalStyle} vocals with a ${emotion} mood. 
-${structure}. ${reverb} acoustics.`;
+  let prompt = `Generate authentic Iraqi maqam music. Structured parameters (Arabic labels): ${spec}. Target tempo: ${bpm} BPM. Preserve microtonal inflection, idiomatic ornamentation, and Iraqi rhythmic feel.`;
 
   if (lyrics) {
-    prompt += `\n\nLyrics:\n${lyrics}\n\nThe melodic line follows the Arabic lyrics with proper maqam ornamentation, microtonal slides, and syllable timing matched to the ${rhythm} rhythm pattern.`;
+    prompt += `\n\nLyrics (Iraqi dialect):\n${lyrics}\n\nAlign melody and syllable stress to the lyrics; honor the chosen rhythm and maqam.`;
   }
 
   return prompt;

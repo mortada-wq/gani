@@ -41,7 +41,7 @@ export default function JawzaChat({ isOpen, onClose }: JawzaChatProps) {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [
-            { role: "user", parts: [{ text: `You are "Jawza" (جوزة), an elite heritage AI expert for "Gun Studio" (ستوديو غُـنّ). Your personality is poetic, wise, and deeply knowledgeable about Iraqi Maqams, rhythms (like Chobi, Gorgina), and instruments. Speak in elegant Arabic. Keep responses concise but culturally rich. User: ${userMsg}` }] }
+            { role: "user", parts: [{ text: `أنت «جوزة»، خبير تراثي رفيع المستوى في «ستوديو غُـنّ». شخصيتك شاعرية وحكيمة، وتتقن المقامات العراقية والإيقاعات (مثل التشوبي والجرغينة) والآلات. أجب بعربية فصيحة رصينة دون مبالغة، وبإيجاز ثري ثقافياً. سؤال المستخدم: ${userMsg}` }] }
         ],
       });
 
@@ -70,7 +70,7 @@ export default function JawzaChat({ isOpen, onClose }: JawzaChatProps) {
             <div className="flex items-center gap-4">
               <JawzaBallIcon size={32} />
               <div className="flex flex-col">
-                <span className="font-arabic font-bold text-[var(--text-primary)] text-xl">جوزة AI</span>
+                <span className="font-title font-bold text-title-gradient text-xl">جوزة</span>
                 <span className="text-[10px] text-[var(--color-teal)] uppercase tracking-widest font-bold opacity-80">عن التاريخ والأطوار</span>
               </div>
             </div>
@@ -96,7 +96,7 @@ export default function JawzaChat({ isOpen, onClose }: JawzaChatProps) {
               >
                 <div className={`max-w-[85%] p-5 rounded-2xl text-sm font-arabic leading-relaxed shadow-sm transition-colors ${
                   msg.role === 'user' 
-                    ? 'bg-[var(--color-teal)] text-white shadow-[0_4px_15px_rgba(14,175,169,0.2)]' 
+                    ? 'bg-[var(--color-teal)] text-[var(--color-void)] shadow-[0_4px_15px_rgba(0,168,255,0.22)]' 
                     : 'bg-[var(--bg-raised)] text-[var(--text-primary)] border border-[var(--color-slate)]/30'
                 }`}>
                   {msg.text}
@@ -156,7 +156,7 @@ export function JawzaBallIcon({ size = 24 }: { size?: number }) {
       className="relative flex items-center justify-center shrink-0"
       style={{ width: size, height: size, perspective: '1000px' }}
     >
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-neon)]/80 via-[var(--color-teal)] to-[var(--bg-void)] border border-[var(--color-neon)]/30 shadow-[0_0_15px_rgba(18,255,235,0.2)]">
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-neon)]/85 via-[var(--color-teal)] to-[var(--brand-slate)] border border-[var(--color-sky)]/40 shadow-[0_0_15px_rgba(0,168,255,0.2)]">
         <div className="absolute top-1/4 left-1/4 w-1/3 h-1/3 bg-white/30 blur-[1px] rounded-full" />
       </div>
       <Sparkles className="w-1/2 h-1/2 text-white/90 relative z-10 drop-shadow-sm" />

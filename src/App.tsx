@@ -1,34 +1,44 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Music, History, Settings, User, Sparkles, Play, Pause, SkipForward, SkipBack, Share2, Download, Info, Type, Volume2, Sun, Moon } from "lucide-react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import {
+  Library,
+  Archive,
+  Palette,
+  CircleUser,
+  Cog,
+  LayoutDashboard,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Logo from "./components/Logo";
 import PromptBar from "./components/PromptBar";
+import PlayShelfCard from "./components/PlayShelfCard";
+import GenerationStudio, { type GenerationPhase } from "./components/GenerationStudio";
 import JawzaChat, { JawzaBallIcon } from "./components/JawzaChat";
+import NowPlayingDock, { type DockTrack } from "./components/NowPlayingDock";
 import { MusicParams, stitchGoldenPrompt } from "./constants";
+import { LIBRARY_PLACEHOLDERS, HOOK_SAMPLES, type LibraryPlaceholder } from "./libraryPlaceholders";
 import { GoogleGenAI, Modality } from "@google/genai";
 
-// Initialize AI
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const SHELF_COLS = 3;
+const SHELF_ROWS = 3;
+
+type PlaybackSource = "none" | "generated" | "library";
+
+type AppView = "explore" | "studio";
+
+function chunkShelfRows(items: LibraryPlaceholder[], cols: number, rows: number): LibraryPlaceholder[][] {
+  const slice = items.slice(0, cols * rows);
+  const out: LibraryPlaceholder[][] = [];
+  for (let r = 0; r < rows; r++) {
+    out.push(slice.slice(r * cols, r * cols + cols));
+  }
+  return out;
+}
 
 export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isJawzaOpen, setIsJawzaOpen] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("gun-studio-theme") as 'dark' | 'light';
-      if (saved) return saved;
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      return prefersDark ? "dark" : "light";
-    }
-    return "dark";
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("gun-studio-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => setTheme(prev => prev === "dark" ? "light" : "dark");
 
   const [params, setParams] = useState<MusicParams>({
     tempo: 90,
@@ -38,38 +48,138 @@ export default function App() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const prevBlobRef = useRef<string | null>(null);
 
-  const handleGenerate = async (userInput: string, manualLyrics?: string) => {
+  const [dockTrack, setDockTrack] = useState<DockTrack | null>(null);
+  const [playbackSource, setPlaybackSource] = useState<PlaybackSource>("none");
+  const [volume, setVolume] = useState(0.88);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  const [appView, setAppView] = useState<AppView>("explore");
+  const [generationPhase, setGenerationPhase] = useState<GenerationPhase>("lyrics");
+  const [sessionPrompt, setSessionPrompt] = useState("");
+  const [sessionLyrics, setSessionLyrics] = useState("");
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    a.volume = volume;
+  }, [volume]);
+
+  useEffect(() => {
+    if (prevBlobRef.current && prevBlobRef.current !== audioUrl) {
+      URL.revokeObjectURL(prevBlobRef.current);
+    }
+    prevBlobRef.current = audioUrl;
+  }, [audioUrl]);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onTime = () => setCurrentTime(a.currentTime);
+    const onMeta = () => setDuration(Number.isFinite(a.duration) ? a.duration : 0);
+    a.addEventListener("timeupdate", onTime);
+    a.addEventListener("loadedmetadata", onMeta);
+    return () => {
+      a.removeEventListener("timeupdate", onTime);
+      a.removeEventListener("loadedmetadata", onMeta);
+    };
+  }, [audioUrl]);
+
+  useEffect(() => {
+    setCurrentTime(0);
+    if (audioRef.current && audioUrl) {
+      audioRef.current.load();
+    }
+  }, [audioUrl]);
+
+  const hasDockAudio = playbackSource === "generated" && !!audioUrl;
+
+  const togglePlayback = useCallback(() => {
+    if (!hasDockAudio || !audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      void audioRef.current.play();
+    }
+  }, [hasDockAudio, isPlaying]);
+
+  const onSeek = useCallback(
+    (seconds: number) => {
+      if (!audioRef.current || !hasDockAudio) return;
+      audioRef.current.currentTime = seconds;
+      setCurrentTime(seconds);
+    },
+    [hasDockAudio]
+  );
+
+  const selectLibraryPreview = (item: LibraryPlaceholder) => {
+    setPlaybackSource("library");
+    setDockTrack({
+      id: item.id,
+      title: item.title,
+      artist: `${item.subtitle} · مكتبة غُنّ`,
+      artworkGradient: item.gradient,
+    });
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const selectGeneratedForPlayback = () => {
+    if (!generatedSong || !audioUrl) return;
+    setPlaybackSource("generated");
+    setDockTrack({
+      id: "generated",
+      title: generatedSong.title,
+      artist: "غُنّ ستوديو · مورتداغزار",
+      artworkGradient:
+        "linear-gradient(135deg, color-mix(in srgb, var(--brand-orange) 55%, transparent), color-mix(in srgb, var(--brand-blue) 45%, transparent))",
+    });
+  };
+
+  const runFullGeneration = async (userInput: string, manualLyrics?: string) => {
     setIsLoading(true);
     setAudioUrl(null);
     setGeneratedSong(null);
-    
-    try {
-      let finalLyrics = manualLyrics;
+    setPlaybackSource("none");
+    setDockTrack(null);
 
-      // 1. Generate Lyrics if not provided
-      if (!manualLyrics) {
+    const trimmedManual = manualLyrics?.trim();
+    if (trimmedManual) {
+      setGenerationPhase("audio");
+    } else {
+      setGenerationPhase("lyrics");
+    }
+
+    try {
+      let finalLyrics: string | undefined = trimmedManual;
+
+      if (!finalLyrics) {
         const lyricPrompt = `You are "Poet Sahib", an elite Iraqi poet. 
         Write 2 verses and a chorus in Iraqi dialect.
         Parameters: ${JSON.stringify(params)}
         User Topic: ${userInput}`;
-        
+
         const response = await ai.models.generateContent({
           model: "gemini-3-flash-preview",
-          contents: [{ role: "user", parts: [{ text: lyricPrompt }] }]
+          contents: [{ role: "user", parts: [{ text: lyricPrompt }] }],
         });
         finalLyrics = response.text;
       }
 
-      // 2. Generate Music using Lyria 3 Pro
+      setGenerationPhase("audio");
+
       const goldenPrompt = stitchGoldenPrompt(params, finalLyrics);
-      
+
       const responseStream = await ai.models.generateContentStream({
         model: "lyria-3-pro-preview",
         contents: `Generate a full Iraqi track. Prompt: ${goldenPrompt}`,
         config: {
           responseModalities: [Modality.AUDIO],
-        }
+        },
       });
 
       let audioBase64 = "";
@@ -79,7 +189,7 @@ export default function App() {
       for await (const chunk of responseStream) {
         const parts = chunk.candidates?.[0]?.content?.parts;
         if (!parts) continue;
-        
+
         for (const part of parts) {
           if (part.inlineData?.data) {
             if (!audioBase64 && part.inlineData.mimeType) {
@@ -93,7 +203,6 @@ export default function App() {
         }
       }
 
-      // 3. Decode and create playable URL
       const binary = atob(audioBase64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) {
@@ -103,252 +212,352 @@ export default function App() {
       const url = URL.createObjectURL(blob);
       setAudioUrl(url);
 
+      const title = userInput || `تكوين أطوار: ${params.maqam || "مقام أصيل"}`;
       setGeneratedSong({
-        title: userInput || `تكوين أطوار: ${params.maqam || "مقام أصيل"}`,
+        title,
         lyrics: finalLyrics,
         params: { ...params },
-        duration: "3:15", // In a real scenario, we'd calculate this from the buffer
+        duration: "3:15",
         genre: `${params.maqam || "مقام"} - ${params.rhythm || "إيقاع"}`,
-        metadata: metadata
+        metadata: metadata,
       });
 
+      setSessionLyrics(typeof finalLyrics === "string" ? finalLyrics : "");
+
+      setPlaybackSource("generated");
+      setDockTrack({
+        id: "generated",
+        title,
+        artist: "غُنّ ستوديو · مورتداغزار",
+        artworkGradient:
+          "linear-gradient(135deg, color-mix(in srgb, var(--brand-orange) 55%, transparent), color-mix(in srgb, var(--brand-blue) 45%, transparent))",
+      });
+
+      setGenerationPhase("done");
     } catch (error) {
       console.error("Lyria Generation failed:", error);
+      setGenerationPhase("error");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const togglePlayback = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play();
+  const beginGeneration = (userInput: string, manualLyrics?: string) => {
+    setSessionPrompt(userInput);
+    setSessionLyrics(manualLyrics?.trim() ?? "");
+    setAppView("studio");
+    void runFullGeneration(userInput, manualLyrics);
+  };
+
+  const iconProps = { className: "w-5 h-5", strokeWidth: 1.75 } as const;
+
+  const shelfRows = chunkShelfRows(LIBRARY_PLACEHOLDERS, SHELF_COLS, SHELF_ROWS);
+
+  const playGeneratedFromCard = () => {
+    const a = audioRef.current;
+    if (!audioUrl || !a) return;
+    if (playbackSource === "generated" && dockTrack?.id === "generated" && !a.paused) {
+      a.pause();
+      return;
     }
-    setIsPlaying(!isPlaying);
+    selectGeneratedForPlayback();
+    void a.play();
   };
 
   return (
-    <div className="min-h-screen flex overflow-hidden selection:bg-neon selection:text-void transition-colors duration-300">
-      <audio 
-        ref={audioRef} 
-        src={audioUrl || undefined} 
-        onEnded={() => setIsPlaying(false)}
+    <div className="min-h-screen flex overflow-hidden transition-colors duration-300">
+      <audio
+        ref={audioRef}
+        src={audioUrl || undefined}
+        preload="metadata"
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        onEnded={() => setIsPlaying(false)}
       />
-      
-      {/* Sidebar Navigation - Collapsible */}
-      <motion.aside 
-        initial={false}
-        animate={{ 
-          width: isSidebarOpen ? 280 : 84,
-        }}
-        transition={{ type: "spring", damping: 20, stiffness: 100 }}
-        className={`h-screen bg-[var(--bg-surface)] border-l border-[var(--color-slate)]/20 flex flex-col relative z-50 backdrop-blur-md transition-colors duration-300 ${isSidebarOpen ? 'p-4' : 'p-3 items-center'}`}
-        style={{ direction: 'rtl' }}
-      >
-        {/* Creative Smoke/Flash Overlay */}
-        <AnimatePresence mode="popLayout">
-          {isSidebarOpen !== null && (
-            <motion.div
-              key={isSidebarOpen ? 'open' : 'closed'}
-              initial={{ opacity: 1, filter: "blur(0px) brightness(1)" }}
-              animate={{ opacity: 0, filter: "blur(20px) brightness(2)" }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="absolute inset-0 bg-white/20 pointer-events-none z-[60]"
-            />
-          )}
-        </AnimatePresence>
 
-        <div 
+      <motion.aside
+        initial={false}
+        animate={{
+          width: isSidebarOpen ? 252 : 72,
+        }}
+        transition={{ type: "spring", damping: 22, stiffness: 320 }}
+        className={`h-screen bg-[var(--bg-surface)] border-l border-[var(--color-slate)]/20 flex flex-col relative z-50 backdrop-blur-md transition-colors duration-300 shrink-0 ${
+          isSidebarOpen ? "px-2.5 py-3" : "px-1.5 py-2.5 items-center"
+        }`}
+        style={{ direction: "rtl" }}
+      >
+        <div
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className={`flex items-center gap-4 mb-10 w-full cursor-pointer hover:opacity-80 transition-opacity ${isSidebarOpen ? '' : 'justify-center'}`}
+          className={`flex items-center gap-3 mb-5 w-full cursor-pointer hover:opacity-85 transition-opacity ${
+            isSidebarOpen ? "" : "justify-center"
+          }`}
         >
-          <Logo className="w-9 h-9 shrink-0 text-[var(--color-neon)] drop-shadow-[0_0_12px_rgba(18,255,235,0.3)] transition-transform duration-300 active:scale-90" />
+          <Logo className="h-9 w-auto shrink-0 transition-transform duration-300 active:scale-90" />
         </div>
 
-        <nav className="flex-1 flex flex-col gap-8">
-          <MenuSection title={isSidebarOpen ? "القائمة" : ""}>
-            <MenuItem icon={<Music className="w-4 h-4" />} label="الأطوار" active isOpen={isSidebarOpen} />
-            <MenuItem icon={<History className="w-4 h-4" />} label="الأرشيف" isOpen={isSidebarOpen} />
-            <MenuItem icon={<Sparkles className="w-4 h-4" />} label="الأنماط" isOpen={isSidebarOpen} />
+        <nav className="flex-1 flex flex-col gap-3.5 min-h-0 overflow-y-auto custom-scrollbar">
+          <MenuSection>
+            <MenuItem
+              icon={<LayoutDashboard {...iconProps} />}
+              label="لوحة الأطوار"
+              active
+              isOpen={isSidebarOpen}
+            />
+            <MenuItem icon={<Library {...iconProps} />} label="مكتبة التوليد" isOpen={isSidebarOpen} />
+            <MenuItem icon={<Archive {...iconProps} />} label="الأرشيف" isOpen={isSidebarOpen} />
+            <MenuItem icon={<Palette {...iconProps} />} label="لوح الأنماط" isOpen={isSidebarOpen} />
           </MenuSection>
 
-          <MenuSection title={isSidebarOpen ? "الحساب" : ""}>
-            <MenuItem icon={<User className="w-4 h-4" />} label="الملف الشخصي" isOpen={isSidebarOpen} />
-            <MenuItem icon={<Settings className="w-4 h-4" />} label="الإعدادات" isOpen={isSidebarOpen} />
-            <MenuItem 
-              onClick={toggleTheme}
-              icon={theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />} 
-              label={theme === 'dark' ? "الوضع النهاري" : "الوضع الليلي"} 
-              isOpen={isSidebarOpen} 
-            />
-            <MenuItem 
+          <MenuSection>
+            <MenuItem icon={<CircleUser {...iconProps} />} label="الملف الشخصي" isOpen={isSidebarOpen} />
+            <MenuItem icon={<Cog {...iconProps} />} label="الإعدادات" isOpen={isSidebarOpen} />
+            <MenuItem
               onClick={() => setIsJawzaOpen(!isJawzaOpen)}
-              icon={<JawzaBallIcon size={18} />} 
-              label="جوزة AI" 
+              icon={<JawzaBallIcon size={20} />}
+              label="جوزة"
               active={isJawzaOpen}
-              isOpen={isSidebarOpen} 
+              isOpen={isSidebarOpen}
             />
           </MenuSection>
         </nav>
+
+        <div
+          className={`mt-auto pt-3 border-t border-[var(--color-slate)]/25 shrink-0 ${
+            isSidebarOpen ? "px-0.5" : "px-0"
+          }`}
+        >
+          <div
+            className={`flex items-center gap-2.5 rounded-xl bg-[var(--bg-raised)]/80 border border-[var(--color-slate)]/20 ${
+              isSidebarOpen ? "px-2.5 py-2" : "p-1.5 justify-center"
+            }`}
+          >
+            <div
+              className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-xs font-bold text-white font-arabic shadow-md"
+              style={{
+                background:
+                  "linear-gradient(135deg, var(--brand-orange) 0%, var(--brand-blue) 55%, var(--brand-sky) 100%)",
+              }}
+              aria-hidden
+            >
+              مـح
+            </div>
+            <AnimatePresence mode="wait">
+              {isSidebarOpen && (
+                <motion.div
+                  initial={{ opacity: 0, x: -6 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -6 }}
+                  transition={{ duration: 0.18 }}
+                  className="min-w-0 flex-1 text-right"
+                >
+                  <p className="text-xs font-bold font-arabic text-[var(--text-primary)] truncate">
+                    مازن الحداد
+                  </p>
+                  <p className="text-[10px] text-[var(--text-secondary)] font-arabic truncate">
+                    ملحن · بغداد
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
       </motion.aside>
 
-      {/* Main Content & Panels Container */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Main Content */}
-        <main className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300">
-          <div className="p-8 lg:p-12 max-w-6xl mx-auto w-full flex flex-col h-full relative">
-            
-            {/* 1. TOP SECTION: Header */}
-            <header className="flex justify-between items-start shrink-0 mb-8">
-              <div />
-            </header>
-  
-            {/* 2. MIDDLE SECTION: Gallery */}
-            <section className="flex-1 overflow-y-auto min-h-0 mb-8 custom-scrollbar">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
-                {/* If no songs yet, show placeholders */}
-                {!generatedSong && !isLoading && [1, 2, 3].map((i) => (
-                  <div key={i} className="glass-panel p-6 border-dashed border-[var(--color-slate)] flex flex-col gap-4 opacity-30">
-                    <div className="h-32 bg-[var(--bg-raised)] rounded-2xl flex items-center justify-center">
-                      <div className="flex gap-1 items-end h-8">
-                        {[1, 2, 3, 4, 3, 2, 5, 2, 3].map((b, idx) => (
-                          <div key={idx} className="w-1 bg-[var(--color-slate)] rounded-full" style={{ height: `${b * 20}%` }} />
-                        ))}
-                      </div>
+      <div className="flex-1 flex overflow-hidden relative min-w-0">
+        <main className="flex-1 flex flex-col h-screen overflow-hidden transition-all duration-300 min-w-0 bg-[var(--bg-void)]">
+          <div className="flex flex-col flex-1 min-h-0 min-w-0">
+            {appView === "studio" ? (
+              <GenerationStudio
+                phase={generationPhase}
+                isLoading={isLoading}
+                sessionPrompt={sessionPrompt}
+                setSessionPrompt={setSessionPrompt}
+                sessionLyrics={sessionLyrics}
+                setSessionLyrics={setSessionLyrics}
+                generatedSong={generatedSong}
+                dockTrack={dockTrack}
+                isPlaying={isPlaying}
+                playbackSource={playbackSource}
+                onPlayGenerated={playGeneratedFromCard}
+                onBack={() => setAppView("explore")}
+                onRegenerate={() => {
+                  const ly = sessionLyrics.trim();
+                  void runFullGeneration(sessionPrompt, ly || undefined);
+                }}
+              />
+            ) : (
+            <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative">
+              <div
+                className="px-5 sm:px-8 lg:px-12 pt-6 pb-10 max-w-6xl mx-auto w-full min-h-full"
+                style={{
+                  background:
+                    "radial-gradient(80% 50% at 50% 0%, color-mix(in srgb, var(--brand-orange) 11%, transparent) 0%, transparent 52%), radial-gradient(65% 38% at 85% 12%, color-mix(in srgb, var(--brand-blue) 9%, transparent) 0%, transparent 42%), var(--bg-void)",
+                }}
+              >
+                <div className="max-w-[900px] mx-auto flex flex-col items-center gap-5 pb-10" dir="rtl">
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-5 text-center sm:text-right">
+                    <Logo className="h-[5.625rem] w-auto sm:h-[7.125rem] shrink-0" />
+                    <div className="flex flex-col gap-0.5 min-w-0 max-w-md leading-snug">
+                      <p
+                        className="font-title text-[1.35rem] sm:text-[1.6rem] tracking-tight bg-clip-text text-transparent"
+                        style={{
+                          backgroundImage:
+                            "linear-gradient(105deg, var(--brand-blue) 0%, var(--brand-sky) 45%, var(--brand-orange) 100%)",
+                        }}
+                      >
+                        غَن يا صاح
+                      </p>
+                      <p className="font-arabic text-sm sm:text-[0.95rem] text-[var(--text-secondary)] font-medium">
+                        واحرس أغاني النهر والمقام
+                      </p>
                     </div>
-                    <div className="h-4 w-2/3 bg-[var(--bg-raised)] rounded-full" />
                   </div>
-                ))}
-  
-                {isLoading && (
-                  <div className="col-span-full py-20 flex flex-col items-center">
-                     <Logo className="w-24 h-24 mb-8 animate-pulse text-[var(--color-neon)]" />
-                     <h2 className="text-xl font-arabic text-[var(--color-neon)] animate-pulse mb-2 italic font-bold">نَصيغُ الألحَانَ بِروحِ العِراق...</h2>
-                     <p className="text-[var(--text-secondary)] font-arabic text-[10px] uppercase tracking-widest opacity-60">جاري معالجة الأطوار والمقامات عبر Lyria 3 Pro</p>
+                  <div className="w-full flex justify-center min-w-0">
+                    <PromptBar
+                      params={params}
+                      setParams={setParams}
+                      onGenerate={beginGeneration}
+                      isLoading={isLoading}
+                    />
                   </div>
-                )}
-  
-                {generatedSong && !isLoading && (
-                  <motion.div 
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="glass-panel p-6 border-[var(--color-slate)] shadow-lg group relative"
-                  >
-                    <div className="absolute top-4 right-4 bg-[var(--color-amber)]/20 text-[var(--color-amber)] text-[8px] px-2 py-0.5 rounded font-mono">
-                      NEW_GEN
-                    </div>
-                    <div className="h-32 bg-[var(--bg-raised)] border border-[var(--color-slate)] rounded-2xl flex items-center justify-center mb-4 overflow-hidden relative">
-                      <div className="flex gap-1 items-end h-12">
-                        {[1, 2, 4, 3, 5, 2, 6, 4, 3, 5, 2].map((b, idx) => (
-                          <motion.div 
-                            key={idx} 
-                            animate={{ height: isPlaying ? [`${b * 12}%`, `${b * 16}%`, `${b * 12}%`] : `${b * 12}%` }}
-                            transition={{ repeat: Infinity, duration: 0.5 + Math.random() }}
-                            className="w-1.5 bg-[var(--color-neon)] rounded-full" 
+                </div>
+
+                <div className={isLoading ? "opacity-45 pointer-events-none" : ""}>
+                  <div className="flex items-end justify-between gap-4 mb-4" dir="rtl">
+                    <h2 className="text-[11px] font-bold font-arabic text-[var(--text-secondary)] tracking-wide">
+                      مكتبة المسارات
+                    </h2>
+                    <span className="text-[9px] font-mono text-[var(--text-secondary)]/70 tabular-nums">
+                      {SHELF_COLS * SHELF_ROWS} معروض
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-5 sm:gap-6">
+                    {shelfRows.map((row, rowIndex) => (
+                      <div
+                        key={rowIndex}
+                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5"
+                      >
+                        {row.map((item) => (
+                          <PlayShelfCard
+                            key={item.id}
+                            title={item.title}
+                            tags={item.tags}
+                            promptText={item.promptLine}
+                            artGradient={item.gradient}
+                            duration={item.duration}
+                            playState="play"
+                            onPlay={() => selectLibraryPreview(item)}
+                            selected={dockTrack?.id === item.id}
+                            promptLabel="الموجه"
                           />
                         ))}
                       </div>
+                    ))}
+                  </div>
+
+                  <section className="mt-10 pt-8 border-t border-[var(--color-slate)]/22" dir="rtl">
+                    <h2 className="text-[11px] font-bold font-arabic text-[var(--text-secondary)] mb-1 tracking-wide">
+                      خطافات ومسارات قصيرة
+                    </h2>
+                    <p className="text-[10px] text-[var(--text-secondary)]/80 font-arabic mb-4 leading-relaxed max-w-xl">
+                      أفكار جاهزة لبداية لحن أو لازمة — انسخها إلى حقل الوصف عند الحاجة.
+                    </p>
+                    <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scroll-smooth">
+                      {HOOK_SAMPLES.map((hook) => (
+                        <button
+                          key={hook.id}
+                          type="button"
+                          className="shrink-0 w-[min(100%,260px)] text-right rounded-2xl border border-[var(--color-slate)]/30 bg-[var(--bg-surface)]/70 px-4 py-3 transition-all hover:border-[var(--brand-blue)]/35 hover:bg-[var(--bg-raised)]/90"
+                        >
+                          <p className="text-xs font-bold font-arabic text-[var(--text-primary)] leading-snug line-clamp-2">
+                            {hook.line}
+                          </p>
+                          <p className="text-[10px] text-[var(--brand-sky)]/90 font-arabic mt-1.5">
+                            {hook.vibe}
+                          </p>
+                        </button>
+                      ))}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] text-[var(--text-secondary)] font-bold uppercase tracking-widest mb-1 opacity-60">{generatedSong.genre}</span>
-                        <h3 className="text-lg font-arabic text-[var(--text-primary)] leading-tight">{generatedSong.title}</h3>
-                      </div>
-                      <motion.button 
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={togglePlayback}
-                        className="w-12 h-12 rounded-full bg-[var(--color-teal)] text-white flex items-center justify-center hover:bg-[var(--color-neon)] transition-colors shadow-md"
-                      >
-                        {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 translate-x-0.5" />}
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                )}
+                  </section>
+                </div>
               </div>
-            </section>
-  
-            {/* 3. BOTTOM SECTION: Prompt Bar (Hero) */}
-            <section className="shrink-0 pt-6">
-              <PromptBar 
-                params={params}
-                setParams={setParams}
-                onGenerate={handleGenerate}
-                isLoading={isLoading}
+            </div>
+            )}
+
+            <div className="shrink-0 border-t border-[var(--color-slate)]/22 bg-[color-mix(in_srgb,var(--bg-void)_94%,transparent)] backdrop-blur-md">
+              <NowPlayingDock
+                track={dockTrack}
+                hasAudio={hasDockAudio}
+                isPlaying={isPlaying}
+                onTogglePlay={togglePlayback}
+                currentTime={currentTime}
+                duration={duration}
+                onSeek={onSeek}
+                volume={volume}
+                onVolume={setVolume}
               />
-            </section>
-  
+            </div>
           </div>
-  
-          <footer className="px-8 pb-4 text-center text-[9px] text-[var(--text-secondary)] font-sans opacity-40 uppercase tracking-[4px]">
-             Copyright &copy; 2026 Resonating Iraqi Heritage &bull; Gun Studio
-          </footer>
         </main>
-  
-        {/* Jawza Side Panel */}
+
         <JawzaChat isOpen={isJawzaOpen} onClose={() => setIsJawzaOpen(false)} />
       </div>
-
-
-      <div className="fixed -bottom-40 -left-40 w-[500px] h-[500px] bg-sahib-saffron/5 blur-[150px] pointer-events-none" />
-      <div className="fixed -top-40 -right-20 w-[400px] h-[400px] bg-sahib-teal/5 blur-[120px] pointer-events-none" />
     </div>
   );
 }
 
-
-function MenuSection({ title, children }: { title: string, children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1 mb-6">
-      {title && <h3 className="px-4 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 font-arabic">{title}</h3>}
-      {children}
-    </div>
-  );
+function MenuSection({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-col gap-0.5 mb-2">{children}</div>;
 }
 
-function MenuItem({ icon, label, active = false, isOpen = true, onClick }: { icon: React.ReactNode, label: string, active?: boolean, isOpen?: boolean, onClick?: () => void }) {
+function MenuItem({
+  icon,
+  label,
+  active = false,
+  isOpen = true,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  isOpen?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <button 
+    <button
+      type="button"
       onClick={onClick}
-      className={`relative w-full flex items-center transition-all duration-300 group outline-none
-        ${isOpen ? 'px-3 py-2 gap-3 rounded-xl' : 'justify-center py-3 px-0 rounded-full'}
-        ${active 
-          ? 'bg-[var(--color-teal)]/10 text-[var(--color-teal)] shadow-[0_0_20px_rgba(14,175,169,0.05)]' 
-          : 'text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] hover:text-[var(--text-primary)]'}
+      className={`relative w-full flex items-center transition-all duration-200 group outline-none
+        ${isOpen ? "px-2 py-1.5 gap-2.5 rounded-xl" : "justify-center py-2 px-0 rounded-xl min-h-[40px]"}
+        ${
+          active
+            ? "bg-[var(--color-teal)]/12 text-[var(--color-teal)] shadow-[0_0_16px_rgba(0,168,255,0.07)]"
+            : "text-[var(--text-secondary)] hover:bg-[var(--bg-raised)] hover:text-[var(--text-primary)]"
+        }
       `}
       title={!isOpen ? label : undefined}
     >
-      <span className={`shrink-0 transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`}>
+      <span
+        className={`shrink-0 flex items-center justify-center transition-transform duration-200 ${
+          active ? "scale-105" : "group-hover:scale-105"
+        }`}
+      >
         {icon}
       </span>
       <AnimatePresence mode="wait">
         {isOpen && (
-          <motion.span 
-            initial={{ opacity: 0, x: -10 }}
+          <motion.span
+            initial={{ opacity: 0, x: -8 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -10 }}
-            transition={{ duration: 0.2 }}
-            className="text-sm font-bold font-arabic whitespace-nowrap"
+            exit={{ opacity: 0, x: -8 }}
+            transition={{ duration: 0.15 }}
+            className="text-[13px] font-bold font-arabic whitespace-nowrap truncate"
           >
             {label}
           </motion.span>
         )}
       </AnimatePresence>
-    </button>
-  );
-}
-
-function ActionButton({ icon, active = false, label = "" }: { icon: React.ReactNode, active?: boolean, label?: string }) {
-  return (
-    <button className={`p-4 rounded-2xl flex items-center gap-3 transition-all group ${active ? 'bg-[var(--color-teal)] text-white' : 'bg-[var(--bg-surface)] border border-[var(--color-slate)] text-[var(--text-secondary)] hover:bg-[var(--color-teal)] hover:border-[var(--color-teal)] hover:text-white shadow-sm'}`}>
-      <span className={`${active ? 'text-white' : 'text-[var(--color-teal)] opacity-50 group-hover:opacity-100 group-hover:text-white'} transition-all`}>
-        {icon}
-      </span>
-      <span className="text-xs font-bold font-arabic">{label}</span>
     </button>
   );
 }
